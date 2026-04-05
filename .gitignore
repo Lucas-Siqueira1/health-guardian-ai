@@ -1,0 +1,10 @@
+venv/
+.venv/
+
+dataset.csv
+relatos_gerados.csv
+*.log
+
+.vscode/
+__pycache__/
+.env

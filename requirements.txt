@@ -1,0 +1,8 @@
+google-adk
+streamlit
+pydantic
+mistralai
+qdrant-client
+pandas
+python-dotenv
+google-genai
