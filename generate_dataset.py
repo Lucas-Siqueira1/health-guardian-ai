@@ -11,27 +11,28 @@ client = genai.Client(api_key=os.environ.get("GOOGLE_API_KEY"))
 df = pd.read_csv("data/dataset.csv")
 novo_df = df[["EDA", "HR", "TEMP", "X", "Y", "Z", "id", "label"]].dropna()
 novo_df["label"] = novo_df["label"].astype(int)
+novo_df["id"] = novo_df["id"].astype(str)
 
-#ta montando grupos com o mesmo id e label e depois pegando uma amostra desses grupos, isso deixa a tabela mais enxuta
-amostras = ( 
-    novo_df.groupby(["id", "label"]).apply(lambda x: x.sample(1, random_state=42)).reset_index(drop=True)
-)
+# montando grupos com o mesmo id e label, isso deixa a tabela mais enxuta
+amostras = novo_df.drop_duplicates(subset=["id", "label"])
 
-#ta balanceando, pegando 15 amostras por label, garante que um nível de estresse tenha mais amostras que outro
-amostras_balanceadas = (
-    amostras.groupby("label").apply(lambda x: x.sample(min(len(x), 15), random_state=42)).reset_index(drop=True)
-)
+# balanceamento manual, pegando 15 amostras por label
+nivel_0 = amostras[amostras["label"] == 0].sample(min(15, len(amostras[amostras["label"] == 0])), random_state=42)
+nivel_1 = amostras[amostras["label"] == 1].sample(min(15, len(amostras[amostras["label"] == 1])), random_state=42)
+nivel_2 = amostras[amostras["label"] == 2].sample(min(15, len(amostras[amostras["label"] == 2])), random_state=42)
 
-#essa função transforma os dados numéricos do dataset em relatos textuais. Como são fornecidos dados em 3 dimensões, para facilitar
-#foi calculado a média entre eles
+amostras_balanceadas = pd.concat([nivel_0, nivel_1, nivel_2]).reset_index(drop=True)
+
+# transforma os dados numéricos em relatos textuais
+# como são fornecidos dados em 3 dimensões, foi calculada a média entre eles
 def gerar_relato(linha):
-    movimento = (abs(linha["X"]) + abs(linha["Y"]) + abs(linha["Z"]))/3
+    movimento = (abs(linha["X"]) + abs(linha["Y"]) + abs(linha["Z"])) / 3
 
     if movimento < 20:
         desc_movimento = "pouco movimento, possivelmente parada"
     elif movimento < 60:
         desc_movimento = "movimento moderado"
-    else: 
+    else:
         desc_movimento = "muito agitada, em constante movimento"
 
     prompt = f"""
@@ -63,12 +64,14 @@ def gerar_relato(linha):
 print(f"Gerando relatos para {len(amostras_balanceadas)} amostras...")
 
 relatos = []
-for i, linhas in amostras_balanceadas.iterrows():
+for i, linha in amostras_balanceadas.iterrows():
     try:
-        relato = gerar_relato(linhas)
+        relato = gerar_relato(linha)
         relatos.append(relato)
+        print(f"[{i+1}/{len(amostras_balanceadas)}] Nível {linha['label']}: OK")
         time.sleep(1)
     except Exception as e:
+        print(f"[{i+1}] Erro: {e}")
         relatos.append("")
 
 amostras_balanceadas["relato"] = relatos
@@ -78,3 +81,4 @@ resultado = amostras_balanceadas[amostras_balanceadas["relato"] != ""][
 ]
 
 resultado.to_csv("data/relatos_gerados.csv", index=False)
+print(f"\nConcluído! {len(resultado)} relatos salvos em data/relatos_gerados.csv")

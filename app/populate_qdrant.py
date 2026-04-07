@@ -25,7 +25,7 @@ points = []
 
 for i, linha in df_relatos.iterrows():
     try:
-        texto_embedding = linha["relatos"]
+        texto_embedding = linha["relato"]
         vetor = gerar_embeddings(texto_embedding)
 
         points.append(PointStruct(
